@@ -247,6 +247,57 @@ footer {
   text-align: center;
 }
 
+
+.location-search {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.location-search input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.78);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 12px 16px;
+  font: inherit;
+  outline: none;
+}
+.location-search input:focus { border-color: #aabeb2; background: white; }
+.location-search button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: var(--accent);
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.location-search button:hover { filter: brightness(.95); }
+
+
+.hourly-chart-wrap {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.hourly-chart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: .82rem;
+  font-weight: 700;
+}
+#hourlyChart {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+
 @media (max-width: 760px) {
   .shell { width: min(100% - 20px, 680px); padding-top: 18px; }
   .topbar { align-items: flex-start; }
@@ -273,6 +324,11 @@ footer {
       </button>
     </header>
 
+    <form class="location-search" id="locationSearch" role="search">
+      <input id="locationInput" type="search" placeholder="Search city or postcode" aria-label="Search location" autocomplete="off" />
+      <button type="submit">Search</button>
+    </form>
+
     <section class="hero card" aria-live="polite">
       <div class="hero-copy">
         <p class="muted" id="dateLabel">Loading today’s forecast…</p>
@@ -282,6 +338,13 @@ footer {
         </div>
         <h2 id="todayCondition">Checking the weather</h2>
         <p class="muted" id="todayRange">High --° · Low --°</p>
+        <div class="hourly-chart-wrap">
+          <div class="hourly-chart-heading">
+            <span>Today at a glance</span>
+            <span class="muted">06:00–21:00</span>
+          </div>
+          <canvas id="hourlyChart" width="620" height="170" aria-label="Hourly temperature chart for today"></canvas>
+        </div>
         <p class="wind-now" id="todayWind">Wind -- km/h · --</p>
       </div>
       <div class="school-ready">
@@ -331,7 +394,8 @@ const state = {
   location: DEFAULT_LOCATION,
   days: [],
   current: null,
-  selectedIndex: 0
+  selectedIndex: 0,
+  hourly: []
 };
 
 const els = {
@@ -351,7 +415,8 @@ const els = {
   detailSummary: document.querySelector("#detailSummary"),
   detailMetrics: document.querySelector("#detailMetrics"),
   detailPacking: document.querySelector("#detailPacking"),
-  closeDetail: document.querySelector("#closeDetail")
+  closeDetail: document.querySelector("#closeDetail"),
+  hourlyChart: document.querySelector("#hourlyChart")
 };
 
 function weatherMeta(code) {
@@ -426,6 +491,78 @@ function formatDay(dateString, short = false) {
   }).format(d);
 }
 
+
+function renderHourlyChart() {
+  const canvas = els.hourlyChart;
+  if (!canvas || !state.hourly.length) return;
+
+  const ctx = canvas.getContext("2d");
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(320, Math.round(rect.width));
+  const height = 150;
+
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const points = state.hourly.filter(item => item.hour >= 6 && item.hour <= 21 && item.hour % 3 === 0);
+  if (points.length < 2) return;
+
+  const temps = points.map(p => p.temp);
+  const minT = Math.min(...temps) - 1;
+  const maxT = Math.max(...temps) + 1;
+  const pad = { left: 18, right: 18, top: 18, bottom: 30 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  const x = i => pad.left + (plotW * i / (points.length - 1));
+  const y = t => pad.top + ((maxT - t) / Math.max(1, maxT - minT)) * plotH;
+
+  ctx.strokeStyle = "rgba(112,118,109,.18)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const gy = pad.top + (plotH * i / 2);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, gy);
+    ctx.lineTo(width - pad.right, gy);
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  points.forEach((point, i) => {
+    const px = x(i);
+    const py = y(point.temp);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.strokeStyle = "#496d5c";
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  points.forEach((point, i) => {
+    const px = x(i);
+    const py = y(point.temp);
+
+    ctx.beginPath();
+    ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#496d5c";
+    ctx.fill();
+
+    ctx.fillStyle = "#20241f";
+    ctx.font = '600 11px "DM Sans", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillText(`${Math.round(point.temp)}°`, px, py - 9);
+
+    ctx.fillStyle = "#70766d";
+    ctx.font = '500 10px "DM Sans", sans-serif';
+    ctx.fillText(`${String(point.hour).padStart(2, "0")}:00`, px, height - 8);
+  });
+}
+
 function render() {
   if (!state.days.length || !state.current) return;
 
@@ -440,6 +577,7 @@ function render() {
   els.todayRange.textContent = `High ${Math.round(today.maxTemp)}° · Low ${Math.round(today.minTemp)}°`;
   els.todayWind.textContent = `Wind ${Math.round(state.current.wind_speed_10m)} km/h · ${windDirection(state.current.wind_direction_10m)}`;
   renderPacking(els.todayPacking, today);
+  requestAnimationFrame(renderHourlyChart);
 
   els.forecastGrid.innerHTML = state.days.map((day, index) => {
     const info = weatherMeta(day.weatherCode);
@@ -500,6 +638,7 @@ async function loadWeather(location) {
     longitude: location.longitude,
     current: "temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m",
     daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max,snowfall_sum",
+    hourly: "temperature_2m,precipitation_probability,weather_code",
     timezone: "auto",
     forecast_days: "7"
   });
@@ -510,6 +649,21 @@ async function loadWeather(location) {
     const data = await response.json();
 
     state.current = data.current;
+
+    state.hourly = (data.hourly?.time || [])
+      .map((time, i) => {
+        const dt = new Date(time);
+        return {
+          time,
+          date: time.slice(0, 10),
+          hour: dt.getHours(),
+          temp: data.hourly.temperature_2m[i],
+          precipProbability: data.hourly.precipitation_probability?.[i] ?? 0,
+          weatherCode: data.hourly.weather_code?.[i] ?? 0
+        };
+      })
+      .filter(item => item.date === data.daily.time[0]);
+
     state.days = data.daily.time.map((date, i) => ({
       date,
       weatherCode: data.daily.weather_code[i],
@@ -557,6 +711,52 @@ els.locationButton.addEventListener("click", useMyLocation);
 els.closeDetail.addEventListener("click", () => {
   els.dayDetail.hidden = true;
 });
+
+
+const locationSearch = document.querySelector("#locationSearch");
+const locationInput = document.querySelector("#locationInput");
+
+locationSearch.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = locationInput.value.trim();
+  if (!query) return;
+
+  showNotice("Searching for location…");
+
+  try {
+    const response = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`
+    );
+    if (!response.ok) throw new Error("Location search unavailable");
+
+    const data = await response.json();
+    const result = data.results?.[0];
+
+    if (!result) {
+      showNotice("Location not found. Try a city, suburb, or postcode.");
+      return;
+    }
+
+    state.location = {
+      name: [result.name, result.admin1, result.country]
+        .filter(Boolean)
+        .filter((value, index, array) => array.indexOf(value) === index)
+        .join(", "),
+      latitude: result.latitude,
+      longitude: result.longitude
+    };
+
+    state.selectedIndex = 0;
+    els.dayDetail.hidden = true;
+    locationInput.value = "";
+    await loadWeather(state.location);
+  } catch (error) {
+    showNotice("I couldn’t search for that location. Check your connection and try again.");
+    console.error(error);
+  }
+});
+
+window.addEventListener("resize", renderHourlyChart);
 
 loadWeather(DEFAULT_LOCATION);
 
