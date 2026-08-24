@@ -3,8 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#f7f5ef" />
-  <title>SchoolCast - Weather for school mornings</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SchoolCast" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#05070c" />
+
+<title>SchoolCast — Weather for school mornings</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='22' cy='22' r='12' fill='%23F5B942'/%3E%3Cg stroke='%23F5B942' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M22 3v6M22 35v6M3 22h6M35 22h6M8.5 8.5l4.2 4.2M31.3 31.3l4.2 4.2M35.5 8.5l-4.2 4.2M12.7 31.3l-4.2 4.2'/%3E%3C/g%3E%3Crect x='24' y='26' width='30' height='30' rx='8' fill='%23496D5C'/%3E%3Cpath d='M32 27v-3c0-5 14-5 14 0v3' fill='none' stroke='%23496D5C' stroke-width='4'/%3E%3Cpath d='M30 38h18M30 46h18' stroke='%23fff' stroke-width='3' stroke-linecap='round' opacity='.9'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -449,6 +454,22 @@ html[data-theme="dark"] .location-result.active { background: rgba(86,245,228,.0
   border-radius: 14px !important;
   background: var(--surface) !important;
   box-shadow: none !important;
+}
+
+
+/* Home-screen / standalone mobile support */
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.shell {
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: max(64px, env(safe-area-inset-bottom));
+}
+@media (display-mode: standalone) {
+  body { overscroll-behavior-y: none; }
 }
 
 </style>
