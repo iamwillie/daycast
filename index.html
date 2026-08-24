@@ -548,9 +548,26 @@ html[data-theme="dark"] .location-result.active { background: rgba(86,245,228,.0
 
   <script>
 const DEFAULT_LOCATION = { name: "Cape Town", latitude: -33.9249, longitude: 18.4241 };
+const LOCATION_STORAGE_KEY = "schoolcast-location";
+
+
+function getSavedLocation() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOCATION_STORAGE_KEY));
+    if (
+      saved &&
+      typeof saved.name === "string" &&
+      Number.isFinite(saved.latitude) &&
+      Number.isFinite(saved.longitude)
+    ) {
+      return saved;
+    }
+  } catch (_) {}
+  return null;
+}
 
 const state = {
-  location: DEFAULT_LOCATION,
+  location: getSavedLocation() || DEFAULT_LOCATION,
   days: [],
   current: null,
   selectedIndex: 0,
@@ -970,6 +987,7 @@ async function selectLocation(index) {
     latitude: result.latitude,
     longitude: result.longitude
   };
+  localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(state.location));
 
   state.selectedIndex = 0;
   els.dayDetail.hidden = true;
@@ -1072,7 +1090,11 @@ applyTiltEffect();
 
 window.addEventListener("resize", renderHourlyChart);
 
-loadWeather(DEFAULT_LOCATION);
+if (els.locationLabel) {
+  els.locationLabel.textContent = state.location.name;
+}
+
+loadWeather(state.location);
 
 </script>
 </body>
